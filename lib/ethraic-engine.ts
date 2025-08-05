@@ -28,7 +28,7 @@ export class ETHRAICEngine {
       const systemPrompt = this.getSystemPrompt(mode)
       
       const message = await this.anthropic!.messages.create({
-        model: 'claude-3-sonnet-20241022',
+model: 'claude-3-5-sonnet-20241022',
         max_tokens: 300,
         system: systemPrompt,
         messages: [{
