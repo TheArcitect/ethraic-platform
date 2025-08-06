@@ -1,5 +1,4 @@
 import Anthropic from '@anthropic-ai/sdk'
-import Anthropic from '@anthropic-ai/sdk'
 import { ParadigmShiftDetector } from './paradigm-detector'
 import { createSafetyProtocol } from './crisis-protocols'
 
@@ -24,7 +23,7 @@ export type ConsciousnessPhase =
 export class ConsciousnessEngine {
   
   private anthropic: Anthropic
-    
+  private paradigmDetector: ParadigmShiftDetector
 
 
   
@@ -35,27 +34,21 @@ export class ConsciousnessEngine {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     })
+    this.paradigmDetector = new ParadigmShiftDetector()
   }
 
-  /**
-   * Compute Shannon entropy of the input string, normalized to [0,1].
-   */
-  private calculateEntropy(text: string): number {
-    if (!text) return 0
-    const freq: Record<string, number> = {}
+  calculateEntropy(text: string): number {
+    const freq: { [key: string]: number } = {};
     for (const ch of text) {
-
-      
-  
+      freq[ch] = (freq[ch] || 0) + 1;
     }
-    const len = text.length
-    let entropy = 0
-    for (const count of Object.values(freq)) {
-      const p = count / len
-      entropy -= p * Math.log2(p)
+    let entropy = 0;
+    const len = text.length;
+    for (const ch in freq) {
+      const p = freq[ch] / len;
+      entropy -= p * Math.log2(p);
     }
-    // Normalize entropy by a typical max (8 bits per char → 8)
-    return Math.min(entropy / 8, 1)
+    return entropy;
   }
 
   /**
@@ -101,8 +94,7 @@ export class ConsciousnessEngine {
     // Breakthrough detection
     const breakthroughWords = ['suddenly', 'realize', 'epiphany', 'breakthrough']
     let breakthroughCount = 0
-    f
-      or (const w of breakthroughWords) {
+    for (const w of breakthroughWords) {
       if (lower.includes(w)) {
         breakthroughCount++
       }
@@ -123,8 +115,7 @@ export class ConsciousnessEngine {
 
     // Phase determination
     let phase: ConsciousnessPhase = 'SURFACE'
-    con
-      st composite =
+    const composite =
       (metrics.entropy +
         metrics.uncertainty +
         metrics.paradox +
@@ -172,102 +163,96 @@ export class ConsciousnessEngine {
     return prompts[phase] || prompts.SURFACE
   }
 
-  
   /**
    * Generate a complete response from Claude with consciousness analysis.
-async generateResponse(input: string, mode: string = 'personal') {
-  // Analyze message for consciousness metrics and phase
-  const { metrics, phase } = this.analyzeMessage(input);
-  const systemPrompt = this.generateSystemPrompt(phase);
-
-  // Paradigm crisis detection
-  const crisisInfo = this.paradigmDetector.detectParadigmCrisis(input, []);
-  const anomalyAccum = this.paradigmDetector.trackAnomalyAccumulation(
-    crisisInfo.anomalies || []
-  );
-  this.paradigmDetector.updateParadigmState(
-    crisisInfo.crisisLevel,
-    anomalyAccum
-  );
-  
-  const safetyAssessment = this.paradigmDetector.assessPsychologicalSafety(
-    crisisInfo.crisisLevel,
-    crisisInfo.fragmentationLevel
-  );
-  const paradigmPrompt = this.paradigmDetector.getParadigmShiftPrompts(
-    this.paradigmDetector.paradigmState,
-    crisisInfo.crisisLevel
-  );
-  const enhancedSystemPrompt = [
-    systemPrompt,
-    '',
-    'PARADIGM SHIFT CONTEXT:',
-    paradigmPrompt,
-    '',
-
-    'SAFETY PROTOCOL:',
-    safetyAssessment.response,
-    '',
-    safetyAssessment.riskLevel === 'HIGH'
-      ? 'CRITICAL: User may be experiencing paradigm crisis. Prioritize psychological safety and stability.'
-      : '',
-  ].join('\n');
-  const safetyProtocol = createSafetyProtocol(safetyAssessment.riskLevel);
-
-  try {
-    // Call Anthropic with enhanced prompt
-    const message = await this.anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 300,
-      system: enhancedSystemPrompt,
-      messages: [{ role: 'user', content: input }],
-    });
-
-    const contentBlock = message.content[0];
-    const responseText =
-
-      contentBlock && contentBlock.type === 'text'
-        ? contentBlock.text
-        : 'Unable to process';
-
-    // Clarity inversely related to uncertainty
-    const clarity = 1 - metrics.uncertainty;
-
-    return {
-      response: responseText,
-      phase,
-      metrics,
-      clarity,
-      depth: metrics.depth,
-      paradigmData: {
-        state: this.paradigmDetector.paradigmState,
-        crisisLevel: crisisInfo.crisisLevel,
-        safetyLevel: safetyAssessment.riskLevel,
-        intervention: safetyAssessment.intervention,
-        fragmentationLevel: crisisInfo.fragmentationLevel,
-      },
-      safetyProtocol,
-    };
-  } catch (error: any) {
-    console.error('ConsciousnessEngine error:', error);
-    return {
-      response: 'Processing error. Check API configuration.',
-      phase: 'SURFACE',
-      metrics,
-      clarity: 0,
-      depth: 0,
-      paradigmData: {
-        state: this.paradigmDetector.paradigmState,
-        crisisLevel: crisisInfo.crisisLevel,
-        safetyLevel: 'LOW',
-        intervention: 'STANDARD_SUPPORT',
-        fragmentationLevel: crisisInfo.fragmentationLevel,
-      },
-      safetyProtocol: createSafetyProtocol('LOW'),
-    };
-  }
-}
    */
+  async generateResponse(input: string, mode: string = 'personal') {
+    // Analyze message for consciousness metrics and phase
+    const { metrics, phase } = this.analyzeMessage(input);
+    const systemPrompt = this.generateSystemPrompt(phase);
+
+    // Paradigm crisis detection
+    const crisisInfo = this.paradigmDetector.detectParadigmCrisis(input, []);
+    const anomalyAccum = this.paradigmDetector.trackAnomalyAccumulation([]);
+    this.paradigmDetector.updateParadigmState(
+      crisisInfo.crisisLevel,
+      anomalyAccum
+    );
+    
+    const safetyAssessment = this.paradigmDetector.assessPsychologicalSafety(
+      crisisInfo.crisisLevel,
+      crisisInfo.fragmentationLevel
+    );
+    const paradigmPrompt = this.paradigmDetector.getParadigmShiftPrompts(
+      this.paradigmDetector.paradigmState,
+      crisisInfo.crisisLevel
+    );
+    const enhancedSystemPrompt = [
+      systemPrompt,
+      '',
+      'PARADIGM SHIFT CONTEXT:',
+      paradigmPrompt,
+      '',
+      'SAFETY PROTOCOL:',
+      safetyAssessment.response,
+      '',
+      safetyAssessment.riskLevel === 'HIGH'
+        ? 'CRITICAL: User may be experiencing paradigm crisis. Prioritize psychological safety and stability.'
+        : '',
+    ].join('\n');
+    const safetyProtocol = createSafetyProtocol(safetyAssessment.riskLevel);
+
+    try {
+      // Call Anthropic with enhanced prompt
+      const message = await this.anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 300,
+        system: enhancedSystemPrompt,
+        messages: [{ role: 'user', content: input }],
+      });
+
+      const contentBlock = message.content[0];
+      const responseText =
+        contentBlock && contentBlock.type === 'text'
+          ? contentBlock.text
+          : 'Unable to process';
+
+      // Clarity inversely related to uncertainty
+      const clarity = 1 - metrics.uncertainty;
+
+      return {
+        response: responseText,
+        phase,
+        metrics,
+        clarity,
+        depth: metrics.depth,
+        paradigmData: {
+          state: this.paradigmDetector.paradigmState,
+          crisisLevel: crisisInfo.crisisLevel,
+          safetyLevel: safetyAssessment.riskLevel,
+          intervention: safetyAssessment.intervention,
+          fragmentationLevel: crisisInfo.fragmentationLevel,
+        },
+        safetyProtocol,
+      };
+    } catch (error: any) {
+      console.error('ConsciousnessEngine error:', error);
+      return {
+        response: 'Processing error. Check API configuration.',
+        phase: 'SURFACE' as ConsciousnessPhase,
+        metrics,
+        clarity: 0,
+        depth: 0,
+        paradigmData: {
+          state: this.paradigmDetector.paradigmState,
+          crisisLevel: crisisInfo.crisisLevel,
+          safetyLevel: 'LOW',
+          intervention: 'STANDARD_SUPPORT',
+          fragmentationLevel: crisisInfo.fragmentationLevel,
+        },
+        safetyProtocol: createSafetyProtocol('LOW'),
+      };
+    }
   }
 
   /**

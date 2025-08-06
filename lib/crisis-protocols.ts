@@ -1,4 +1,4 @@
-crisis-protocols.ts// lib/crisis-protocols.ts
+// lib/crisis-protocols.ts
 // Shared safety and crisis response logic
 
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH';
