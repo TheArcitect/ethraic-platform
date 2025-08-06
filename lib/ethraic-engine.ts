@@ -20,9 +20,14 @@ export type ConsciousnessPhase =
   | 'INTEGRATION'
   | 'TRANSCENDENT'
 
-export class ConsciousnessEngine {
-  private anthropic: Anthropic
 
+export class ConsciousnessEngine {
+  
+  private anthropic: Anthropic
+    
+
+
+  
   constructor() {
     if (!process.env.ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY not configured')
@@ -39,8 +44,9 @@ export class ConsciousnessEngine {
     if (!text) return 0
     const freq: Record<string, number> = {}
     for (const ch of text) {
-    
-        private paradigmDetector: ParadigmShiftDetectorfreq[ch] = (freq[ch] || 0) + 1
+
+      
+  
     }
     const len = text.length
     let entropy = 0
@@ -56,7 +62,9 @@ export class ConsciousnessEngine {
    * Analyze a message and return metrics + phase.
    */
   analyzeMessage(text: string): { metrics: ConsciousnessMetrics; phase: ConsciousnessPhase } {
+  
     const lower = text.toLowerCase()
+    
     const words = lower.split(/\s+/).filter(Boolean)
     const wordCount = words.length
 
@@ -69,13 +77,18 @@ export class ConsciousnessEngine {
       }
     }
     // Count question marks as additional uncertainty
+  
     const questionMarks = (text.match(/\?/g) || []).length
     const uncertaintyScore = Math.min(uncertainCount / 3 + questionMarks / 5, 1)
+
+    
 
     // Paradox detection
     const paradoxWords = ['but', 'however', 'yet', 'paradox', 'contradiction', 'contradictory']
     let paradoxCount = 0
-    for (const w of paradoxWords) {
+    
+    for (
+      const w of paradoxWords) {
       if (lower.includes(w)) {
         paradoxCount++
       }
@@ -88,11 +101,13 @@ export class ConsciousnessEngine {
     // Breakthrough detection
     const breakthroughWords = ['suddenly', 'realize', 'epiphany', 'breakthrough']
     let breakthroughCount = 0
-    for (const w of breakthroughWords) {
+    f
+      or (const w of breakthroughWords) {
       if (lower.includes(w)) {
         breakthroughCount++
       }
     }
+ 
     const breakthroughScore = Math.min(breakthroughCount / 2, 1)
 
     const entropy = this.calculateEntropy(text)
@@ -101,13 +116,15 @@ export class ConsciousnessEngine {
       entropy,
       uncertainty: uncertaintyScore,
       paradox: paradoxScore,
+      
       depth: depthScore,
       breakthrough: breakthroughScore,
     }
 
     // Phase determination
     let phase: ConsciousnessPhase = 'SURFACE'
-    const composite =
+    con
+      st composite =
       (metrics.entropy +
         metrics.uncertainty +
         metrics.paradox +
@@ -122,6 +139,7 @@ export class ConsciousnessEngine {
     } else if (metrics.paradox > 0.5) {
       phase = 'PARADOX'
     } else if (metrics.uncertainty > 0.6) {
+     
       phase = 'UNCERTAINTY'
     } else if (metrics.uncertainty > 0.4) {
       phase = 'QUESTIONING'
@@ -134,10 +152,13 @@ export class ConsciousnessEngine {
    * Generate a system prompt based on the detected phase.
    */
   private generateSystemPrompt(phase: ConsciousnessPhase): string {
+
     const prompts: Record<ConsciousnessPhase, string> = {
       SURFACE:
         'You are ETHRAIC, a co-intelligence system. Provide clear, concise responses to initiate deeper thinking.',
       QUESTIONING:
+       
+        
         'You are ETHRAIC guiding a questioning user. Encourage curiosity and exploration of underlying assumptions.',
       UNCERTAINTY:
         'You are ETHRAIC. Help the user embrace not-knowing and inquire into possibilities without needing certainty.',
@@ -151,6 +172,7 @@ export class ConsciousnessEngine {
     return prompts[phase] || prompts.SURFACE
   }
 
+  
   /**
    * Generate a complete response from Claude with consciousness analysis.
 async generateResponse(input: string, mode: string = 'personal') {
@@ -167,6 +189,7 @@ async generateResponse(input: string, mode: string = 'personal') {
     crisisInfo.crisisLevel,
     anomalyAccum
   );
+  
   const safetyAssessment = this.paradigmDetector.assessPsychologicalSafety(
     crisisInfo.crisisLevel,
     crisisInfo.fragmentationLevel
@@ -181,6 +204,7 @@ async generateResponse(input: string, mode: string = 'personal') {
     'PARADIGM SHIFT CONTEXT:',
     paradigmPrompt,
     '',
+
     'SAFETY PROTOCOL:',
     safetyAssessment.response,
     '',
@@ -201,6 +225,7 @@ async generateResponse(input: string, mode: string = 'personal') {
 
     const contentBlock = message.content[0];
     const responseText =
+
       contentBlock && contentBlock.type === 'text'
         ? contentBlock.text
         : 'Unable to process';
