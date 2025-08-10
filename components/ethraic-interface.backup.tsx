@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send, Brain, Activity, Zap, Layers, ChevronRight, Menu, X, BarChart3, History, Lightbulb, Settings, Mic, MicOff } from 'lucide-react'
 import { AudioHandler, type AudioHandlerRef } from './audio-handler'
-import ThoughtCanvas from './thought-canvas'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -47,37 +46,13 @@ export default function EthraicInterface() {
   const [sessionStart] = useState(Date.now())
   const [sessionDuration, setSessionDuration] = useState(0)
   const [exchangeCount, setExchangeCount] = useState(0)
-  const [sidebarOpen, setSidebarOpen] = useState(true) // Default open
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [displayedResponse, setDisplayedResponse] = useState('')
   const [currentResponseIndex, setCurrentResponseIndex] = useState(0)
   const [voiceActive, setVoiceActive] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [audioEnabled, setAudioEnabled] = useState(true)
   const audioHandlerRef = useRef<AudioHandlerRef>(null)
-  const [taglineIndex, setTaglineIndex] = useState(0)
-  const [fadeClass, setFadeClass] = useState('opacity-100')
-
-  const taglines = [
-    "get to the point faster",
-    "sharpen your perspective",
-    "expand consciousness",
-    "breakthrough thinking",
-    "paradigm shifts await",
-    "clarity through chaos",
-    "depth over surface"
-  ]
-
-  // Rotate taglines every 3 seconds with fade
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFadeClass('opacity-0')
-      setTimeout(() => {
-        setTaglineIndex((prev) => (prev + 1) % taglines.length)
-        setFadeClass('opacity-100')
-      }, 300)
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
 
   // Update session duration
   useEffect(() => {
@@ -297,7 +272,7 @@ export default function EthraicInterface() {
             <h2 className="text-2xl font-bold text-white mb-6">Thought History</h2>
             <div className="space-y-4 max-h-[600px] overflow-y-auto">
               {messages.map((msg, idx) => (
-                <div key={idx} className="bg-gray-900/50 rounded-lg p-4">
+                <div key={idx} className="bg-gray-800/50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-xs font-semibold ${msg.role === 'user' ? 'text-blue-400' : 'text-purple-400'}`}>
                       {msg.role === 'user' ? 'You' : 'ETHRAIC'}
@@ -360,59 +335,69 @@ export default function EthraicInterface() {
   return (
     <div className="fixed inset-0 bg-black text-white overflow-hidden">
       {/* Particle canvas background */}
-      <ThoughtCanvas />
+      <div className="absolute inset-0 z-0" />
       
+      {/* Top left corner - ETHRAIC branding with menu */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-3">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 hover:bg-gray-800/50 rounded-lg transition-colors"
+        >
+          <Menu size={16} className="text-gray-400" />
+        </button>
+        <span className="text-sm text-gray-400 tracking-wider">ETHRAIC</span>
+      </div>
+
       {/* Main centered interface */}
-      <div className={`relative z-10 h-full flex flex-col items-center justify-center px-8 transition-all duration-300 ${sidebarOpen ? 'ml-80' : 'ml-0'}`}>
+      <div className="relative z-10 h-full flex flex-col items-center justify-center px-8">
         {/* Title */}
         <h1 className="text-6xl font-extralight tracking-[0.3em] mb-4">ETHRAIC</h1>
         
         {/* Metrics */}
-        <div className="text-xs text-gray-500 tracking-wider mb-4">
+        <div className="text-xs text-gray-500 tracking-wider mb-12">
           CLARITY: {metrics.clarity}% | DEPTH: {metrics.depth}%
         </div>
 
-        {/* Sharpen Your Perspective */}
-        <div className="text-xs text-gray-600 tracking-[0.3em] mb-12">
-          SHARPEN YOUR PERSPECTIVE
-        </div>
-
-        {/* Messages */}
+        {/* Messages or GET TO THE POINT */}
         <div className="w-full max-w-2xl h-[300px] flex items-center justify-center mb-12">
-          <div className="w-full max-h-full overflow-y-auto space-y-4 px-4">
-            {messages.map((message, index) => {
-              const isLastAssistant = index === messages.length - 1 && message.role === 'assistant'
-              const displayContent = isLastAssistant && !message.condensed ? displayedResponse : message.content
-              
-              return (
-                <div
-                  key={index}
-                  className={`${message.role === 'user' ? 'text-right' : 'text-left'}`}
-                >
+          {messages.length === 0 ? (
+            <p className="text-sm text-gray-600 tracking-[0.2em]">GET TO THE POINT</p>
+          ) : (
+            <div className="w-full max-h-full overflow-y-auto space-y-4 px-4">
+              {messages.map((message, index) => {
+                const isLastAssistant = index === messages.length - 1 && message.role === 'assistant'
+                const displayContent = isLastAssistant && !message.condensed ? displayedResponse : message.content
+                
+                return (
                   <div
-                    className={`inline-block px-4 py-2 rounded-lg max-w-lg ${
-                      message.role === 'user'
-                        ? 'bg-white/10 text-white'
-                        : 'text-gray-300'
-                    } ${message.condensed ? 'opacity-30' : ''}`}
+                    key={index}
+                    className={`${message.role === 'user' ? 'text-right' : 'text-left'}`}
                   >
-                    {displayContent}
-                    {isLastAssistant && displayedResponse.length < message.content.length && (
-                      <span className="inline-block w-1 h-3 bg-gray-400 animate-pulse ml-1" />
-                    )}
+                    <div
+                      className={`inline-block px-4 py-2 rounded-lg max-w-lg ${
+                        message.role === 'user'
+                          ? 'bg-white/10 text-white'
+                          : 'text-gray-300'
+                      } ${message.condensed ? 'opacity-30' : ''}`}
+                    >
+                      {displayContent}
+                      {isLastAssistant && displayedResponse.length < message.content.length && (
+                        <span className="inline-block w-1 h-3 bg-gray-400 animate-pulse ml-1" />
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              {isThinking && (
+                <div className="text-left">
+                  <div className="inline-block px-4 py-2 text-gray-500">
+                    <span className="animate-pulse">thinking...</span>
                   </div>
                 </div>
-              )
-            })}
-            {isThinking && (
-              <div className="text-left">
-                <div className="inline-block px-4 py-2 text-gray-500">
-                  <span className="animate-pulse">thinking...</span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
 
         {/* Input */}
@@ -473,17 +458,17 @@ export default function EthraicInterface() {
       </div>
 
       {/* Overlay Sidebar */}
-      <div className={`fixed left-0 top-0 h-full ${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 bg-black border-r border-gray-800 overflow-hidden z-30`}>
+      <div className={`fixed left-0 top-0 h-full ${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 bg-gray-900/95 backdrop-blur border-r border-gray-800 overflow-hidden z-30`}>
         <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-extralight tracking-[0.2em]">ETHRAIC</h1>
-            <span className={`text-xs text-gray-500 tracking-wider transition-opacity duration-300 ${fadeClass}`}>
-              {taglines[taglineIndex]}
-            </span>
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              ETHRAIC
+            </h1>
+            <p className="text-xs text-gray-500 mt-1">Consciousness Expansion Platform</p>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-2 hover:bg-gray-900 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
           >
             <X size={20} />
           </button>
@@ -505,7 +490,7 @@ export default function EthraicInterface() {
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                     activeSection === id 
                       ? 'bg-blue-600/20 text-blue-400' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-900'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
                   }`}
                 >
                   <Icon size={18} />
@@ -527,7 +512,7 @@ export default function EthraicInterface() {
             </div>
           </nav>
         ) : (
-          <div className="h-full overflow-y-auto bg-black">
+          <div className="h-full overflow-y-auto">
             <button
               onClick={() => setActiveSection('consciousness')}
               className="m-4 text-gray-400 hover:text-white flex items-center gap-2"
@@ -539,16 +524,6 @@ export default function EthraicInterface() {
           </div>
         )}
       </div>
-
-      {/* Menu button (only shows when sidebar is closed) */}
-      {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 p-2 hover:bg-gray-900 rounded-lg transition-colors z-20"
-        >
-          <Menu size={16} className="text-gray-400" />
-        </button>
-      )}
     </div>
   )
 }

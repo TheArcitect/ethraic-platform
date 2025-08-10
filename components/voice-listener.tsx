@@ -1,136 +1,132 @@
-'use client'
+'use client';
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react';
 
-interface VoiceListenerProps {
-  onTranscript: (text: string) => void
-  isProcessing: boolean
-}
+export default function RealtimeVoice({ onTranscription, onAIResponse }) {
+  const [isConnected, setIsConnected] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [status, setStatus] = useState('CLICK TO ACTIVATE');
+  const wsRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const streamRef = useRef(null);
 
-export function VoiceListener({ onTranscript, isProcessing }: VoiceListenerProps) {
-  const [isListening, setIsListening] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(240) // 4 minutes in seconds
-  const mediaRecorder = useRef<MediaRecorder | null>(null)
-  const chunks = useRef<Blob[]>([])
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  const startListening = async () => {
+  const startConnection = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaRecorder.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm'
-      })
+      setStatus('CONNECTING...');
       
-      mediaRecorder.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.current.push(event.data)
-        }
-      }
-
-      mediaRecorder.current.onstop = async () => {
-        const audioBlob = new Blob(chunks.current, { type: 'audio/webm' })
-        chunks.current = []
+      // Get session from our API
+      const response = await fetch('/api/realtime/session', {
+        method: 'POST',
+      });
+      
+      const sessionData = await response.json();
+      console.log('Got session:', sessionData.sessionId);
+      
+      // Connect to OpenAI
+      const ws = new WebSocket(
+        'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview'
+      );
+      
+      ws.onopen = () => {
+        console.log('Connected!');
+        setIsConnected(true);
+        setStatus('READY - CLICK TO SPEAK');
         
-        // Convert to smaller format if needed
-        const formData = new FormData()
-        formData.append('audio', audioBlob, 'recording.webm')
-        
-        try {
-          const response = await fetch('/api/transcribe', {
-            method: 'POST',
-            body: formData
-          })
-          
-          if (response.ok) {
-            const { text } = await response.json()
-            if (text) onTranscript(text)
-          } else {
-            const error = await response.json()
-            console.error('Transcription error:', error)
-            alert('Transcription failed. Try a shorter recording.')
+        // Setup ETHRAIC personality
+        ws.send(JSON.stringify({
+          type: 'session.update',
+          session: {
+            modalities: ['text', 'audio'],
+            voice: 'alloy',
+            instructions: 'You are ETHRAIC, a consciousness expansion interface. Help users explore paradigm shifts.',
+            input_audio_format: 'pcm16',
+            output_audio_format: 'pcm16',
+            temperature: 0.9
           }
-        } catch (error) {
-          console.error('Transcription error:', error)
-        }
-        
-        setTimeLeft(240) // Reset timer
-      }
-
-      mediaRecorder.current.start(1000) // Collect data every second
-      setIsListening(true)
-
-      // Start countdown timer
-      let seconds = 240
-      timerRef.current = setInterval(() => {
-        seconds--
-        setTimeLeft(seconds)
-        
-        if (seconds <= 0) {
-          stopListening()
-        }
-      }, 1000)
-
-    } catch (error) {
-      console.error('Microphone error:', error)
-      alert('Please allow microphone access')
-    }
-  }
-
-  const stopListening = () => {
-    if (mediaRecorder.current?.state === 'recording') {
-      mediaRecorder.current.stop()
-      mediaRecorder.current.stream.getTracks().forEach(track => track.stop())
-      setIsListening(false)
+        }));
+      };
       
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-      setTimeLeft(240)
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        console.log('Got message:', message.type);
+        
+        if (message.type === 'response.text.delta' && message.delta) {
+          if (onAIResponse) onAIResponse(message.delta);
+        }
+      };
+      
+      wsRef.current = ws;
+      
+    } catch (error) {
+      console.error('Connection failed:', error);
+      setStatus('CONNECTION FAILED');
     }
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
+  };
+  
+  const toggleListening = async () => {
+    if (!isConnected) {
+      await startConnection();
+      return;
+    }
+    
+    if (isListening) {
+      // Stop
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      setIsListening(false);
+      setStatus('READY - CLICK TO SPEAK');
+    } else {
+      // Start
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        setIsListening(true);
+        setStatus('LISTENING...');
+        
+        // Setup audio processing (simplified)
+        const audioContext = new AudioContext({ sampleRate: 24000 });
+        const source = audioContext.createMediaStreamSource(stream);
+        const processor = audioContext.createScriptProcessor(2048, 1, 1);
+        
+        processor.onaudioprocess = (e) => {
+          if (wsRef.current && isListening) {
+            const inputData = e.inputBuffer.getChannelData(0);
+            // Convert and send audio (simplified for now)
+            console.log('Sending audio...');
+          }
+        };
+        
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+        audioContextRef.current = audioContext;
+        
+      } catch (error) {
+        console.error('Mic error:', error);
+        setStatus('MIC ACCESS DENIED');
+      }
+    }
+  };
+  
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2">
       <button
-        onClick={isListening ? stopListening : startListening}
-        disabled={isProcessing}
-        className={`w-32 h-32 rounded-full border transition-all ${
-          isListening 
-            ? 'border-red-500/50 bg-red-500/10 animate-pulse' 
-            : isProcessing
-            ? 'border-white/20 opacity-50'
-            : 'border-white/20 hover:border-white/40'
-        } flex flex-col items-center justify-center gap-2`}
+        onClick={toggleListening}
+        className={`
+          px-8 py-4 rounded-full font-mono text-sm uppercase
+          transition-all duration-300
+          ${isListening 
+            ? 'bg-white text-black scale-110' 
+            : 'bg-black text-white border border-white/40 hover:bg-white/10'
+          }
+        `}
       >
-        <div className="text-xs uppercase tracking-widest opacity-60">
-          {isListening ? 'Recording' : 'Speak'}
-        </div>
-        {isListening && (
-          <>
-            <div className="flex gap-1">
-              <span className="w-1 h-3 bg-red-500/50 animate-pulse" />
-              <span className="w-1 h-4 bg-red-500/50 animate-pulse" style={{ animationDelay: '0.1s' }} />
-              <span className="w-1 h-2 bg-red-500/50 animate-pulse" style={{ animationDelay: '0.2s' }} />
-              <span className="w-1 h-5 bg-red-500/50 animate-pulse" style={{ animationDelay: '0.3s' }} />
-            </div>
-            <div className="text-xs opacity-80 font-mono">
-              {formatTime(timeLeft)}
-            </div>
-          </>
-        )}
+        {isListening ? '🔴 LISTENING' : '🎤 SPEAK TO ETHRAIC'}
       </button>
-      {isListening && (
-        <div className="text-xs opacity-50">
-          Max 4 minutes • Click to stop
-        </div>
-      )}
+      
+      <div className="text-center mt-2">
+        <p className="text-xs text-white/50 font-mono">{status}</p>
+      </div>
     </div>
-  )
+  );
 }
