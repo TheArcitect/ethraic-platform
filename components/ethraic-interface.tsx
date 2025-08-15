@@ -433,93 +433,6 @@ export default function EthraicInterface() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Render metrics content for Thought Metrics section
-  const renderMetricsContent = () => {
-    if (activeSection === 'metrics' && leftSidebarOpen) {
-      return (
-        <div 
-          className="absolute top-14 left-64 bg-gray-950 border border-gray-800 rounded-lg p-6 w-80 z-30 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => setActiveSection('consciousness')}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
-          >
-            <X size={14} />
-          </button>
-          
-          <h3 className="text-sm font-thin text-white mb-4 tracking-[0.2em] uppercase">Thought Metrics</h3>
-          
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-gray-400">Mental Clarity</span>
-                <span className="text-xs text-white">{metrics.clarity}%</span>
-              </div>
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.clarity}%` }} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">How clear and focused your thoughts are</p>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-gray-400">Thinking Depth</span>
-                <span className="text-xs text-white">{metrics.depth}%</span>
-              </div>
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.depth}%` }} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">How deeply you're exploring the topic</p>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-gray-400">Creative Flow</span>
-                <span className="text-xs text-white">{metrics.flowState}%</span>
-              </div>
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.flowState}%` }} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Your state of effortless concentration</p>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-gray-400">Breakthrough Potential</span>
-                <span className="text-xs text-white">{metrics.paradigmShift}%</span>
-              </div>
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.paradigmShift}%` }} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Likelihood of a major insight</p>
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-gray-400">Pattern Recognition</span>
-                <span className="text-xs text-white">{metrics.resonance}%</span>
-              </div>
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.resonance}%` }} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Your ability to see connections</p>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-gray-800">
-            <div className="text-xs text-gray-500">
-              <p>Current Phase: <span className="text-white">{currentPhase}</span></p>
-              <p className="mt-1">Session Time: <span className="text-white">{formatDuration(sessionDuration)}</span></p>
-              <p className="mt-1">Exchanges: <span className="text-white">{exchangeCount}</span></p>
-            </div>
-          </div>
-        </div>
-      )
-    }
-    return null
-  }
-
   return (
     <div className="fixed inset-0 bg-black text-white overflow-hidden flex">
       <style jsx global>{`
@@ -543,73 +456,79 @@ export default function EthraicInterface() {
             </h1>
           </div>
 
-          {/* Navigation - Consciousness first */}
-          <nav className={`${leftSidebarOpen ? 'px-4' : 'px-2'} py-4 space-y-1 border-b border-gray-800`}>
-            <button 
-              onClick={() => setActiveSection('consciousness')}
-              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
-                activeSection === 'consciousness' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
-              }`}
-              title={!leftSidebarOpen ? 'Consciousness' : ''}
-            >
-              <Brain size={14} />
-              {leftSidebarOpen && <span className="text-xs font-thin">Consciousness</span>}
-            </button>
-            
-            <button 
-              onClick={() => setActiveSection('metrics')}
-              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
-                activeSection === 'metrics' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
-              }`}
-              title={!leftSidebarOpen ? 'Thought Metrics' : ''}
-            >
-              <BarChart3 size={14} />
-              {leftSidebarOpen && <span className="text-xs font-thin">Thought Metrics</span>}
-            </button>
-            
-            <button 
-              onClick={() => setActiveSection('history')}
-              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
-                activeSection === 'history' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
-              }`}
-              title={!leftSidebarOpen ? 'History' : ''}
-            >
-              <History size={14} />
-              {leftSidebarOpen && <span className="text-xs font-thin">History</span>}
-            </button>
-            
-            <button 
-              onClick={() => setActiveSection('insights')}
-              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
-                activeSection === 'insights' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
-              }`}
-              title={!leftSidebarOpen ? 'Insights' : ''}
-            >
-              <Lightbulb size={14} />
-              {leftSidebarOpen && <span className="text-xs font-thin">Insights</span>}
-            </button>
-            
-            <button 
-              onClick={() => setActiveSection('settings')}
-              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
-                activeSection === 'settings' 
-                  ? 'bg-gray-900 text-white' 
-                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
-              }`}
-              title={!leftSidebarOpen ? 'Settings' : ''}
-            >
-              <Settings size={14} />
-              {leftSidebarOpen && <span className="text-xs font-thin">Settings</span>}
-            </button>
-          </nav>
+          {/* Metrics Display - Replaces Navigation */}
+          <div className={`${leftSidebarOpen ? 'px-4' : 'px-2'} py-4 space-y-4 border-b border-gray-800`}>
+            {leftSidebarOpen && (
+              <>
+                <h3 className="text-sm font-thin text-white tracking-[0.2em] uppercase">Thought Metrics</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-white">Mental Clarity</span>
+                      <span className="text-xs text-white">{metrics.clarity}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-white transition-all duration-500" style={{ width: `${metrics.clarity}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">How clear and focused your thoughts are</p>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-white">Thinking Depth</span>
+                      <span className="text-xs text-white">{metrics.depth}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-white transition-all duration-500" style={{ width: `${metrics.depth}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">How deeply you're exploring the topic</p>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-white">Creative Flow</span>
+                      <span className="text-xs text-white">{metrics.flowState}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-white transition-all duration-500" style={{ width: `${metrics.flowState}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Your state of effortless concentration</p>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-white">Breakthrough Potential</span>
+                      <span className="text-xs text-white">{metrics.paradigmShift}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-white transition-all duration-500" style={{ width: `${metrics.paradigmShift}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Likelihood of a major insight</p>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-white">Pattern Recognition</span>
+                      <span className="text-xs text-white">{metrics.resonance}%</span>
+                    </div>
+                    <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-white transition-all duration-500" style={{ width: `${metrics.resonance}%` }} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Your ability to see connections</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-800">
+                  <div className="text-xs text-gray-500">
+                    <p>Current Phase: <span className="text-white">{currentPhase}</span></p>
+                    <p className="mt-1">Session Time: <span className="text-white">{formatDuration(sessionDuration)}</span></p>
+                    <p className="mt-1">Exchanges: <span className="text-white">{exchangeCount}</span></p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Thought Threads Section - Now scrollable */}
           <div className={`flex-1 ${leftSidebarOpen ? 'px-4' : 'px-2'} py-4 overflow-y-auto`}>
@@ -959,9 +878,6 @@ export default function EthraicInterface() {
           </div>
         </div>
       </div>
-
-      {/* Metrics Panel Overlay */}
-      {renderMetricsContent()}
 
       {/* Sidebar Toggle Button - Show when both sidebars are closed */}
       {!leftSidebarOpen && !rightSidebarOpen && (
