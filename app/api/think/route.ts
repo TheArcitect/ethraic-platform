@@ -238,11 +238,12 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error in think API:', error)
     
+    // Fixed: Changed 'type' to 'name'
     if (error instanceof Anthropic.APIError) {
       console.error('Anthropic API Error:', {
         status: error.status,
         message: error.message,
-        type: error.type
+        name: error.name  // ✅ FIXED: Changed from 'type' to 'name'
       })
     }
     
