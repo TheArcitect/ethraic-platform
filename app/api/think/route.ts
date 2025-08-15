@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+
 import Anthropic from '@anthropic-ai/sdk'
 import { supabase } from '@/lib/supabase'
 import {
@@ -89,8 +90,7 @@ Respond in a way that expands consciousness and facilitates breakthrough thinkin
     const sid = await getOrCreateSession(sessionId)
 
     // Insert user message
-    await supabase.from('messages').insert({
-      session_id: sid,
+    await supabase.from('messages').insert(,
       role: 'user',
       content: message
     })
