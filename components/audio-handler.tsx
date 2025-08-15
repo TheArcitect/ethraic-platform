@@ -56,26 +56,20 @@ export const AudioHandler = forwardRef<AudioHandlerRef, AudioHandlerProps>(
     }))
 
     return (
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onToggle}
-          className={`p-2 rounded-lg transition-all ${
-            enabled 
-              ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' 
-              : 'bg-gray-700/50 text-gray-500 hover:bg-gray-700'
-          }`}
-          title={enabled ? 'Disable voice' : 'Enable voice'}
-        >
-          {enabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-        </button>
-        
+      <button
+        onClick={onToggle}
+        className={`p-3 rounded-full transition-all ${
+          enabled 
+            ? 'bg-blue-500/20 border border-blue-500/50' 
+            : 'bg-transparent border border-gray-800'
+        }`}
+        title={enabled ? 'Disable voice' : 'Enable voice'}
+      >
+        {enabled ? <Volume2 size={14} className="text-blue-400" /> : <VolumeX size={14} className="text-gray-500" />}
         {isGenerating && (
-          <div className="flex items-center gap-2">
-            <div className="animate-pulse w-2 h-2 bg-blue-400 rounded-full" />
-            <span className="text-xs text-blue-300">Generating voice...</span>
-          </div>
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
         )}
-      </div>
+      </button>
     )
   }
 )

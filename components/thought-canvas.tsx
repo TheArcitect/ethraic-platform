@@ -1,227 +1,176 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react'
 
-declare global {
-  interface Window {
-    createThoughtCluster?: (x: number, y: number, intensity: number) => void;
-  }
-}
-
-const ThoughtCanvas = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export default function ThoughtCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const particlesRef = useRef<any[]>([])
+  const animationRef = useRef<number>()
+  const mouseRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Check if we're in the browser
+    if (typeof window === 'undefined') return
 
-    class ThoughtNode {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      life: number;
-      maxLife: number;
-      radius: number;
-      connections: any[];
-      pulsePhase: number;
+    const canvas = canvasRef.current
+    if (!canvas) return
+    
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-      constructor(x: number, y: number, life = 1) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.random() - 0.5) * 0.5;
-        this.vy = (Math.random() - 0.5) * 0.5;
-        this.life = life;
-        this.maxLife = life;
-        this.radius = Math.random() * 2 + 1;
-        this.connections = [];
-        this.pulsePhase = Math.random() * Math.PI * 2;
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    class Particle {
+      x: number
+      y: number
+      vx: number
+      vy: number
+      radius: number
+      opacity: number
+      fadeSpeed: number
+      pulsePhase: number
+      color: string
+
+      constructor() {
+        this.x = Math.random() * canvas.width
+        this.y = Math.random() * canvas.height
+        this.vx = (Math.random() - 0.5) * 0.5
+        this.vy = (Math.random() - 0.5) * 0.5
+        this.radius = Math.random() * 2 + 0.5
+        this.opacity = Math.random() * 0.5 + 0.1
+        this.fadeSpeed = Math.random() * 0.01 + 0.005
+        this.pulsePhase = Math.random() * Math.PI * 2
+        this.color = `rgba(255, 255, 255, ${this.opacity})`
       }
 
       update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life -= 0.002;
-        this.pulsePhase += 0.02;
+        this.x += this.vx
+        this.y += this.vy
+        this.pulsePhase += 0.05
         
-        if (this.x < 50 || this.x > canvas.width - 50) {
-          this.vx *= -0.8;
-          this.x = Math.max(50, Math.min(canvas.width - 50, this.x));
-        }
-        if (this.y < 50 || this.y > canvas.height - 50) {
-          this.vy *= -0.8;
-          this.y = Math.max(50, Math.min(canvas.height - 50, this.y));
+        const pulse = Math.sin(this.pulsePhase) * 0.2 + 0.8
+        this.opacity = Math.min(0.6, Math.max(0.1, this.opacity * pulse))
+        
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1
+        
+        const dx = mouseRef.current.x - this.x
+        const dy = mouseRef.current.y - this.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        
+        if (distance < 100) {
+          const force = (100 - distance) / 100
+          this.vx += (dx / distance) * force * 0.05
+          this.vy += (dy / distance) * force * 0.05
         }
         
-        this.vx *= 0.999;
-        this.vy *= 0.999;
+        this.vx *= 0.99
+        this.vy *= 0.99
       }
 
       draw() {
-        const opacity = Math.max(0, Math.min(1, this.life)) * 0.8;
-        const pulse = Math.sin(this.pulsePhase) * 0.3 + 0.7;
-        
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.6})`;
-        ctx.fill();
+        if (!ctx) return
+        ctx.beginPath()
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`
+        ctx.fill()
       }
     }
 
-    class Connection {
-      node1: ThoughtNode;
-      node2: ThoughtNode;
-      strength: number;
-      targetStrength: number;
-      pulsePhase: number;
-
-      constructor(node1: ThoughtNode, node2: ThoughtNode) {
-        this.node1 = node1;
-        this.node2 = node2;
-        this.strength = 0;
-        this.targetStrength = Math.random() * 0.5 + 0.2;
-        this.pulsePhase = Math.random() * Math.PI * 2;
-      }
-
-      update() {
-        this.strength += (this.targetStrength - this.strength) * 0.05;
-        this.pulsePhase += 0.03;
-        
-        if (Math.random() < 0.01) {
-          this.targetStrength = Math.random() * 0.5 + 0.2;
-        }
-      }
-
-      draw() {
-        const dist = Math.hypot(this.node2.x - this.node1.x, this.node2.y - this.node1.y);
-        const maxDist = 200;
-        
-        if (dist < maxDist) {
-          const opacity = (1 - dist / maxDist) * this.strength * 
-                        Math.min(this.node1.life, this.node2.life) *
-                        (Math.sin(this.pulsePhase) * 0.2 + 0.8);
-          
-          ctx.beginPath();
-          ctx.moveTo(this.node1.x, this.node1.y);
-          
-          const midX = (this.node1.x + this.node2.x) / 2 + Math.sin(this.pulsePhase) * 10;
-          const midY = (this.node1.y + this.node2.y) / 2 + Math.cos(this.pulsePhase) * 10;
-          
-          ctx.quadraticCurveTo(midX, midY, this.node2.x, this.node2.y);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.3})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-      }
-    }
-
-    let thoughts: ThoughtNode[] = [];
-    let connections: Connection[] = [];
-
-    function createThoughtCluster(x: number, y: number, intensity = 1) {
-      const count = Math.floor(3 + intensity * 5);
-      const newThoughts: ThoughtNode[] = [];
-      
-      for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 * i) / count;
-        const radius = 20 + Math.random() * 50 * intensity;
-        const nx = x + Math.cos(angle) * radius;
-        const ny = y + Math.sin(angle) * radius;
-        const node = new ThoughtNode(nx, ny, 1 + Math.random());
-        thoughts.push(node);
-        newThoughts.push(node);
-      }
-      
-      for (let i = 0; i < newThoughts.length; i++) {
-        for (let j = i + 1; j < newThoughts.length; j++) {
-          if (Math.random() < 0.3) {
-            connections.push(new Connection(newThoughts[i], newThoughts[j]));
-          }
-        }
-      }
-      
-      for (let newNode of newThoughts) {
-        for (let existingNode of thoughts) {
-          if (!newThoughts.includes(existingNode) && Math.random() < 0.1) {
-            connections.push(new Connection(newNode, existingNode));
-          }
-        }
-      }
+    // Initialize particles
+    for (let i = 0; i < 50; i++) {
+      particlesRef.current.push(new Particle())
     }
 
     function animate() {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!ctx || !canvas) return
       
-      connections = connections.filter(conn => 
-        conn.node1.life > 0 && conn.node2.life > 0
-      );
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
       
-      connections.forEach(conn => {
-        conn.update();
-        conn.draw();
-      });
+      particlesRef.current.forEach(particle => {
+        particle.update()
+        particle.draw()
+      })
       
-      thoughts = thoughts.filter(thought => thought.life > 0);
+      // Draw connections
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
+      ctx.lineWidth = 0.5
       
-      thoughts.forEach(thought => {
-        thought.update();
-        thought.draw();
-      });
+      for (let i = 0; i < particlesRef.current.length; i++) {
+        for (let j = i + 1; j < particlesRef.current.length; j++) {
+          const dx = particlesRef.current[i].x - particlesRef.current[j].x
+          const dy = particlesRef.current[i].y - particlesRef.current[j].y
+          const distance = Math.sqrt(dx * dx + dy * dy)
+          
+          if (distance < 150) {
+            ctx.beginPath()
+            ctx.moveTo(particlesRef.current[i].x, particlesRef.current[i].y)
+            ctx.lineTo(particlesRef.current[j].x, particlesRef.current[j].y)
+            ctx.globalAlpha = (150 - distance) / 150 * 0.2
+            ctx.stroke()
+            ctx.globalAlpha = 1
+          }
+        }
+      }
       
-      requestAnimationFrame(animate);
+      animationRef.current = requestAnimationFrame(animate)
     }
 
-    const ambientInterval = setInterval(() => {
-      if (thoughts.length < 30 && Math.random() < 0.3) {
-        createThoughtCluster(
-          Math.random() * canvas.width,
-          Math.random() * canvas.height,
-          Math.random() * 0.3
-        );
-      }
-    }, 2000);
+    animate()
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY }
+    }
 
     const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', handleResize);
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
 
-    animate();
-
-    setTimeout(() => {
-      createThoughtCluster(canvas.width * 0.3, canvas.height * 0.4, 0.5);
-    }, 500);
-
-    window.createThoughtCluster = createThoughtCluster;
+    // Safely add event listeners
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('resize', handleResize)
+      
+      // Global function for thought triggers - safely add to window
+      if (typeof window !== 'undefined') {
+        (window as any).createThoughtCluster = (x: number, y: number, intensity: number) => {
+          for (let i = 0; i < 10 * intensity; i++) {
+            const particle = new Particle()
+            particle.x = x
+            particle.y = y
+            particle.vx = (Math.random() - 0.5) * 5 * intensity
+            particle.vy = (Math.random() - 0.5) * 5 * intensity
+            particle.opacity = 0.8
+            particlesRef.current.push(particle)
+          }
+          
+          // Limit particles
+          if (particlesRef.current.length > 200) {
+            particlesRef.current = particlesRef.current.slice(-200)
+          }
+        }
+      }
+    }
 
     return () => {
-      clearInterval(ambientInterval);
-      window.removeEventListener('resize', handleResize);
-      delete window.createThoughtCluster;
-    };
-  }, []);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('resize', handleResize)
+      }
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [])
 
   return (
     <canvas 
       ref={canvasRef}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none'
-      }}
+      className="fixed inset-0 w-full h-full"
+      style={{ background: 'black' }}
     />
-  );
-};
-
-export default ThoughtCanvas;
+  )
+}

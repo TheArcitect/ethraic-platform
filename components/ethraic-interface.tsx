@@ -1,82 +1,161 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Send, Brain, Activity, Zap, Layers, ChevronRight, Menu, X, BarChart3, History, Lightbulb, Settings, Mic, MicOff } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { 
+  Brain, Activity, Zap, Layers, ChevronRight, ChevronLeft, Menu, X, 
+  BarChart3, History, Lightbulb, Settings, Mic, MicOff, User, Plus, 
+  MessageCircle, FolderOpen, Star, Volume2, VolumeX, Type, Send,
+  Headphones, Moon, Sun, LogOut, HelpCircle, Shield, CreditCard,
+  Users, FileText, Download, Upload, Trash2, Archive, ChevronDown, ArrowUp,
+  Share2, Edit2
+} from 'lucide-react'
 import { AudioHandler, type AudioHandlerRef } from './audio-handler'
 import ThoughtCanvas from './thought-canvas'
+import { ConsciousnessExpansionEngine } from '../lib/ethraic-engine'
 
 interface Message {
+  id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: number
   clarity?: number
   depth?: number
   condensed?: boolean
+  threadId?: string
 }
 
-interface Metrics {
-  clarity: number
-  depth: number
-  resonance: number
-  emergence: number
-  paradigmShift: number
-  flowState: number
-  insightVelocity: number
-  questionQuality: number
-  conceptualLeaps: number
-  attentionCoherence: number
+interface ThoughtThread {
+  id: string
+  title: string
+  created: number
+  lastActive: number
+  messages: Message[]
+  metrics?: any
+  starred?: boolean
+}
+
+interface UserProfile {
+  name: string
+  email: string
+  plan: 'Free' | 'Pro' | 'Max'
+  avatar?: string
+  preferences: {
+    voiceEnabled: boolean
+    theme: 'dark' | 'light'
+    condensation: boolean
+    particles: boolean
+    autoSave: boolean
+    coThinking: boolean
+  }
 }
 
 export default function EthraicInterface() {
+  // Core state
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
-  const [metrics, setMetrics] = useState<Metrics>({
-    clarity: 50,
-    depth: 50,
-    resonance: 0,
-    emergence: 0,
-    paradigmShift: 0,
-    flowState: 0,
-    insightVelocity: 0,
-    questionQuality: 0,
-    conceptualLeaps: 0,
-    attentionCoherence: 0
-  })
   const [activeSection, setActiveSection] = useState('consciousness')
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
+  const [displayedResponse, setDisplayedResponse] = useState('')
+  const [currentResponseIndex, setCurrentResponseIndex] = useState(0)
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  
+  // Voice state
+  const [voiceActive, setVoiceActive] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [preferTyping, setPreferTyping] = useState(false)
+  const [coThinkingMode, setCoThinkingMode] = useState(false)
+  const [audioEnabled, setAudioEnabled] = useState(true)
+  
+  // Thread management
+  const [thoughtThreads, setThoughtThreads] = useState<ThoughtThread[]>([])
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
+  const [threadSearch, setThreadSearch] = useState('')
+  
+  // User profile
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: 'Michael Schaeffer',
+    email: 'michael@ethraic.ai',
+    plan: 'Max',
+    preferences: {
+      voiceEnabled: true,
+      theme: 'dark',
+      condensation: true,
+      particles: true,
+      autoSave: true,
+      coThinking: false
+    }
+  })
+  
+  // Session tracking
   const [sessionStart] = useState(Date.now())
   const [sessionDuration, setSessionDuration] = useState(0)
   const [exchangeCount, setExchangeCount] = useState(0)
-  const [sidebarOpen, setSidebarOpen] = useState(true) // Default open
-  const [displayedResponse, setDisplayedResponse] = useState('')
-  const [currentResponseIndex, setCurrentResponseIndex] = useState(0)
-  const [voiceActive, setVoiceActive] = useState(false)
+  
+  // Mathematical engine
+  const engineRef = useRef(new ConsciousnessExpansionEngine())
+  const [metrics, setMetrics] = useState(engineRef.current.getState())
+  const [breakthroughMetrics, setBreakthroughMetrics] = useState(engineRef.current.getBreakthroughMetrics())
+  const [currentPhase, setCurrentPhase] = useState<string>('SURFACE')
+  
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [audioEnabled, setAudioEnabled] = useState(true)
   const audioHandlerRef = useRef<AudioHandlerRef>(null)
-  const [taglineIndex, setTaglineIndex] = useState(0)
-  const [fadeClass, setFadeClass] = useState('opacity-100')
+  const recognitionRef = useRef<any>(null)
+  const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null)
 
-  const taglines = [
-    "get to the point faster",
-    "sharpen your perspective",
-    "expand consciousness",
-    "breakthrough thinking",
-    "paradigm shifts await",
-    "clarity through chaos",
-    "depth over surface"
-  ]
-
-  // Rotate taglines every 3 seconds with fade
+  // Initialize
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFadeClass('opacity-0')
-      setTimeout(() => {
-        setTaglineIndex((prev) => (prev + 1) % taglines.length)
-        setFadeClass('opacity-100')
-      }, 300)
-    }, 3000)
-    return () => clearInterval(interval)
+    if (typeof window === 'undefined') return
+    
+    setRightSidebarOpen(true)
+    
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition
+      recognitionRef.current = new SpeechRecognition()
+      recognitionRef.current.continuous = true
+      recognitionRef.current.interimResults = true
+      
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
+          .join('')
+        
+        if (event.results[event.results.length - 1].isFinal) {
+          handleVoiceInput(transcript)
+        }
+      }
+      
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error)
+        setIsListening(false)
+      }
+    }
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const savedThreads = localStorage.getItem('ethraic_threads')
+      if (savedThreads) {
+        try {
+          setThoughtThreads(JSON.parse(savedThreads))
+        } catch (e) {
+          console.error('Error loading saved threads:', e)
+        }
+      }
+      
+      const savedPreferences = localStorage.getItem('ethraic_preferences')
+      if (savedPreferences) {
+        try {
+          setUserProfile(prev => ({
+            ...prev,
+            preferences: JSON.parse(savedPreferences)
+          }))
+        } catch (e) {
+          console.error('Error loading preferences:', e)
+        }
+      }
+    }
   }, [])
 
   // Update session duration
@@ -96,9 +175,9 @@ export default function EthraicInterface() {
   useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1]
-      if (lastMessage.role === 'assistant' && !lastMessage.condensed) {
-        const fullText = lastMessage.content
-        if (currentResponseIndex < fullText.length) {
+      if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.condensed) {
+        const fullText = lastMessage.content || ''
+        if (fullText && currentResponseIndex < fullText.length) {
           const timer = setTimeout(() => {
             setDisplayedResponse(fullText.substring(0, currentResponseIndex + 1))
             setCurrentResponseIndex(prev => prev + 1)
@@ -109,111 +188,110 @@ export default function EthraicInterface() {
     }
   }, [messages, currentResponseIndex])
 
-  // Thought condensation
-  useEffect(() => {
-    const condensationTimer = setInterval(() => {
-      setMessages(prev => prev.map(msg => {
-        const age = Date.now() - msg.timestamp
-        if (age > 30000 && !msg.condensed) {
-          return { ...msg, condensed: true }
-        }
-        return msg
-      }))
-    }, 5000)
+  // Voice input handler
+  const handleVoiceInput = useCallback((transcript: string) => {
+    if (!transcript.trim()) return
     
-    return () => clearInterval(condensationTimer)
-  }, [])
-
-  const calculateMetrics = (response: any, messageCount: number) => {
-    const baseMetrics = {
-      clarity: response.clarity || 0,
-      depth: response.depth || 0,
-      resonance: Math.min(100, (response.clarity + response.depth) / 2),
-      emergence: Math.random() * 30 + (response.depth * 0.7),
-      paradigmShift: response.phase === 'INTEGRATION' ? 85 : response.phase === 'DEEP' ? 60 : 30,
-      flowState: Math.min(100, messageCount * 10 + response.depth * 0.5),
-      insightVelocity: Math.min(100, (response.clarity * 0.6 + messageCount * 5)),
-      questionQuality: response.depth * 0.8 + Math.random() * 20,
-      conceptualLeaps: Math.floor(response.depth / 25) + (response.phase === 'INTEGRATION' ? 2 : 0),
-      attentionCoherence: Math.min(100, 50 + response.clarity * 0.3 + response.depth * 0.2)
+    const userMessage: Message = {
+      id: `msg_${Date.now()}`,
+      role: 'user',
+      content: transcript,
+      timestamp: Date.now(),
+      threadId: activeThreadId || undefined
     }
     
-    setMetrics(prev => ({
-      clarity: Math.round((prev.clarity * 0.7 + baseMetrics.clarity * 0.3)),
-      depth: Math.round((prev.depth * 0.7 + baseMetrics.depth * 0.3)),
-      resonance: Math.round(baseMetrics.resonance),
-      emergence: Math.round(baseMetrics.emergence),
-      paradigmShift: Math.round(baseMetrics.paradigmShift),
-      flowState: Math.round(baseMetrics.flowState),
-      insightVelocity: Math.round(baseMetrics.insightVelocity),
-      questionQuality: Math.round(baseMetrics.questionQuality),
-      conceptualLeaps: baseMetrics.conceptualLeaps,
-      attentionCoherence: Math.round(baseMetrics.attentionCoherence)
-    }))
+    setMessages(prev => [...prev, userMessage])
+    processMessage(transcript)
+  }, [activeThreadId])
+
+  // Start/stop voice recognition
+  const toggleVoiceRecognition = () => {
+    if (!recognitionRef.current) {
+      alert('Voice recognition is not available in your browser. Please use Chrome or Edge.')
+      return
+    }
+    
+    if (isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      recognitionRef.current.start()
+      setIsListening(true)
+      
+      if (coThinkingMode) {
+        recognitionRef.current.continuous = true
+      }
+    }
   }
 
-  const handleSendMessage = async () => {
-    if (!input.trim() || isThinking) return
-
-    const userMessage: Message = {
-      role: 'user',
-      content: input,
-      timestamp: Date.now()
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setInput('')
+  // Process message
+  const processMessage = async (text: string) => {
     setIsThinking(true)
     setExchangeCount(prev => prev + 1)
     setDisplayedResponse('')
     setCurrentResponseIndex(0)
 
     try {
+      const newMetrics = engineRef.current.calculateConsciousnessMetrics(
+        text,
+        messages.map(m => ({ role: m.role, content: m.content })),
+        sessionDuration
+      )
+      setMetrics(newMetrics)
+      
+      const breakthroughs = engineRef.current.getBreakthroughMetrics()
+      setBreakthroughMetrics(breakthroughs)
+      
+      const phase = engineRef.current.detectPhase()
+      setCurrentPhase(phase)
+
       const response = await fetch('/api/think', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
+          message: text,
           context: messages.map(m => ({
             role: m.role,
             content: m.content
-          }))
+          })),
+          metrics: newMetrics,
+          phase: phase,
+          coThinking: coThinkingMode
         })
       })
 
       const data = await response.json()
       
       const aiMessage: Message = {
+        id: `msg_${Date.now()}`,
         role: 'assistant',
         content: data.response,
         timestamp: Date.now(),
-        clarity: data.clarity,
-        depth: data.depth
+        clarity: newMetrics.clarity,
+        depth: newMetrics.depth,
+        threadId: activeThreadId || undefined
       }
 
       setMessages(prev => [...prev, aiMessage])
       
-      // Play audio response
-      if (audioHandlerRef.current) {
+      if (audioEnabled && audioHandlerRef.current) {
         audioHandlerRef.current.playAudio(data.response)
       }
       
-      calculateMetrics(data, exchangeCount + 1)
-      
-      // Trigger visual effect
-      if (typeof window !== 'undefined' && (window as any).createThoughtCluster) {
-        const intensity = data.depth / 100
+      if (typeof window !== 'undefined' && window && (window as any).createThoughtCluster) {
+        const intensity = newMetrics.paradigmShift / 30
         ;(window as any).createThoughtCluster(
           window.innerWidth / 2,
           window.innerHeight / 2,
-          intensity * 3
+          intensity
         )
       }
     } catch (error) {
       console.error('Error:', error)
       const errorMessage: Message = {
+        id: `msg_${Date.now()}`,
         role: 'assistant',
-        content: 'I need a moment to gather my thoughts... Please try again.',
+        content: 'I need a moment to recalibrate my thoughts... Please try again.',
         timestamp: Date.now()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -222,331 +300,677 @@ export default function EthraicInterface() {
     }
   }
 
+  // Text input handler
+  const handleSendMessage = async () => {
+    if (!input.trim() || isThinking) return
+    
+    const userMessage: Message = {
+      id: `msg_${Date.now()}`,
+      role: 'user',
+      content: input,
+      timestamp: Date.now(),
+      threadId: activeThreadId || undefined
+    }
+    
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    
+    await processMessage(userMessage.content)
+  }
+
+  // Thread management
+  const createNewThread = () => {
+    const newThread: ThoughtThread = {
+      id: `thread_${Date.now()}`,
+      title: 'Untitled Thread',
+      created: Date.now(),
+      lastActive: Date.now(),
+      messages: [],
+      metrics: engineRef.current.getState(),
+      starred: false
+    }
+    
+    setThoughtThreads(prev => [...prev, newThread])
+    setActiveThreadId(newThread.id)
+    setMessages([])
+    engineRef.current.reset()
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem('ethraic_threads', JSON.stringify([...thoughtThreads, newThread]))
+      } catch (e) {
+        console.error('Error saving thread:', e)
+      }
+    }
+  }
+
+  const loadThread = (threadId: string) => {
+    const thread = thoughtThreads.find(t => t.id === threadId)
+    if (thread) {
+      setActiveThreadId(threadId)
+      setMessages(thread.messages)
+      if (thread.metrics) {
+        setMetrics(thread.metrics)
+      }
+    }
+  }
+
+  const saveCurrentThread = () => {
+    if (!activeThreadId) {
+      createNewThread()
+      return
+    }
+    
+    setThoughtThreads(prev => prev.map(thread => {
+      if (thread.id === activeThreadId) {
+        return {
+          ...thread,
+          messages,
+          lastActive: Date.now(),
+          metrics: engineRef.current.getState()
+        }
+      }
+      return thread
+    }))
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem('ethraic_threads', JSON.stringify(thoughtThreads))
+      } catch (e) {
+        console.error('Error saving thread:', e)
+      }
+    }
+  }
+
+  const deleteThread = (threadId: string) => {
+    setThoughtThreads(prev => prev.filter(t => t.id !== threadId))
+    if (activeThreadId === threadId) {
+      setActiveThreadId(null)
+      setMessages([])
+      engineRef.current.reset()
+    }
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem('ethraic_threads', JSON.stringify(thoughtThreads.filter(t => t.id !== threadId)))
+      } catch (e) {
+        console.error('Error deleting thread:', e)
+      }
+    }
+  }
+
+  // Preference handlers
+  const updatePreference = (key: keyof UserProfile['preferences'], value: any) => {
+    setUserProfile(prev => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        [key]: value
+      }
+    }))
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem('ethraic_preferences', JSON.stringify({
+          ...userProfile.preferences,
+          [key]: value
+        }))
+      } catch (e) {
+        console.error('Error saving preferences:', e)
+      }
+    }
+  }
+
+  // Utility functions
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
+    const hours = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
+    
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getMetricDescription = (metric: string, value: number) => {
-    const descriptions: Record<string, string> = {
-      clarity: value > 70 ? "Crystal clear understanding emerging" : value > 40 ? "Thoughts organizing into patterns" : "Exploring conceptual space",
-      depth: value > 70 ? "Profound depths reached" : value > 40 ? "Diving below surface thoughts" : "Beginning descent into meaning",
-      resonance: value > 70 ? "Strong harmonic alignment" : value > 40 ? "Patterns synchronizing" : "Seeking resonant frequency",
-      emergence: value > 70 ? "New insights crystallizing" : value > 40 ? "Unexpected connections forming" : "Latent patterns activating",
-      paradigmShift: value > 70 ? "Breakthrough imminent" : value > 40 ? "Perspective shifting" : "Foundations examining",
-      flowState: value > 70 ? "Optimal flow achieved" : value > 40 ? "Entering flow channel" : "Building momentum",
-      insightVelocity: value > 70 ? "Rapid insight generation" : value > 40 ? "Accelerating understanding" : "Gathering cognitive speed",
-      questionQuality: value > 70 ? "Asking profound questions" : value > 40 ? "Questions deepening" : "Curiosity awakening",
-      conceptualLeaps: value > 2 ? "Making breakthrough connections" : value > 0 ? "Jumping across domains" : "Building bridges",
-      attentionCoherence: value > 70 ? "Laser-focused awareness" : value > 40 ? "Attention crystallizing" : "Gathering focus"
-    }
-    return descriptions[metric] || "Calibrating..."
-  }
-
-  const MetricBar = ({ label, value, description }: { label: string, value: number, description: string }) => (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-gray-400 uppercase tracking-wider">{label}</span>
-        <span className="text-xs text-gray-500">{value}%</span>
-      </div>
-      <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+  // Render metrics content for Thought Metrics section
+  const renderMetricsContent = () => {
+    if (activeSection === 'metrics' && leftSidebarOpen) {
+      return (
         <div 
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-1000 ease-out"
-          style={{ width: `${value}%` }}
-        />
-      </div>
-      <p className="text-xs text-gray-500 italic">{description}</p>
-    </div>
-  )
-
-  const renderSidebarContent = () => {
-    switch(activeSection) {
-      case 'metrics':
-        return (
-          <div className="p-6 space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Consciousness Metrics</h2>
-            <div className="space-y-4">
-              <MetricBar 
-                label="Clarity" 
-                value={metrics.clarity} 
-                description={getMetricDescription('clarity', metrics.clarity)}
-              />
-              <MetricBar 
-                label="Depth" 
-                value={metrics.depth}
-                description={getMetricDescription('depth', metrics.depth)}
-              />
-              <MetricBar 
-                label="Resonance" 
-                value={metrics.resonance}
-                description={getMetricDescription('resonance', metrics.resonance)}
-              />
-              <MetricBar 
-                label="Paradigm Shift" 
-                value={metrics.paradigmShift}
-                description={getMetricDescription('paradigmShift', metrics.paradigmShift)}
-              />
-            </div>
-          </div>
-        )
-      
-      case 'history':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Thought History</h2>
-            <div className="space-y-4 max-h-[600px] overflow-y-auto">
-              {messages.map((msg, idx) => (
-                <div key={idx} className="bg-gray-900/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${msg.role === 'user' ? 'text-blue-400' : 'text-purple-400'}`}>
-                      {msg.role === 'user' ? 'You' : 'ETHRAIC'}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-300 line-clamp-3">{msg.content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      
-      case 'insights':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Key Insights</h2>
-            <div className="space-y-4">
-              {metrics.paradigmShift > 60 && (
-                <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-xl p-6 border border-purple-500/30">
-                  <h3 className="text-lg font-semibold text-white mb-2">🎯 Paradigm Shift Detected</h3>
-                  <p className="text-sm text-gray-300">
-                    Your thinking has reached a transformative threshold.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      
-      case 'settings':
-        return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Settings</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-300">Voice Responses</span>
-                <button
-                  onClick={() => setAudioEnabled(!audioEnabled)}
-                  className={`w-12 h-6 rounded-full transition-colors ${
-                    audioEnabled ? 'bg-blue-500' : 'bg-gray-600'
-                  } relative`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                    audioEnabled ? 'translate-x-7' : 'translate-x-1'
-                  }`} />
-                </button>
+          className="absolute top-14 left-64 bg-gray-950 border border-gray-800 rounded-lg p-6 w-80 z-30 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => setActiveSection('consciousness')}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-300"
+          >
+            <X size={14} />
+          </button>
+          
+          <h3 className="text-sm font-thin text-white mb-4 tracking-[0.2em] uppercase">Thought Metrics</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400">Mental Clarity</span>
+                <span className="text-xs text-white">{metrics.clarity}%</span>
               </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.clarity}%` }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">How clear and focused your thoughts are</p>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400">Thinking Depth</span>
+                <span className="text-xs text-white">{metrics.depth}%</span>
+              </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.depth}%` }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">How deeply you're exploring the topic</p>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400">Creative Flow</span>
+                <span className="text-xs text-white">{metrics.flowState}%</span>
+              </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.flowState}%` }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Your state of effortless concentration</p>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400">Breakthrough Potential</span>
+                <span className="text-xs text-white">{metrics.paradigmShift}%</span>
+              </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.paradigmShift}%` }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Likelihood of a major insight</p>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400">Pattern Recognition</span>
+                <span className="text-xs text-white">{metrics.resonance}%</span>
+              </div>
+              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-600 transition-all duration-500" style={{ width: `${metrics.resonance}%` }} />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Your ability to see connections</p>
             </div>
           </div>
-        )
-      
-      default:
-        return null
+
+          <div className="mt-6 pt-4 border-t border-gray-800">
+            <div className="text-xs text-gray-500">
+              <p>Current Phase: <span className="text-white">{currentPhase}</span></p>
+              <p className="mt-1">Session Time: <span className="text-white">{formatDuration(sessionDuration)}</span></p>
+              <p className="mt-1">Exchanges: <span className="text-white">{exchangeCount}</span></p>
+            </div>
+          </div>
+        </div>
+      )
     }
+    return null
   }
 
   return (
-    <div className="fixed inset-0 bg-black text-white overflow-hidden">
-      {/* Particle canvas background */}
-      <ThoughtCanvas />
-      
-      {/* Main centered interface */}
-      <div className={`relative z-10 h-full flex flex-col items-center justify-center px-8 transition-all duration-300 ${sidebarOpen ? 'ml-80' : 'ml-0'}`}>
-        {/* Title */}
-        <h1 className="text-6xl font-extralight tracking-[0.3em] mb-4">ETHRAIC</h1>
+    <div className="fixed inset-0 bg-black text-white overflow-hidden flex">
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700&display=swap');
         
-        {/* Metrics */}
-        <div className="text-xs text-gray-500 tracking-wider mb-4">
-          CLARITY: {metrics.clarity}% | DEPTH: {metrics.depth}%
-        </div>
+        @font-face {
+          font-family: 'ETHRAIC';
+          src: local('Inter'), local('system-ui'), local('-apple-system'), local('BlinkMacSystemFont');
+          font-weight: 100;
+          letter-spacing: 0.4em;
+        }
+      `}</style>
 
-        {/* Sharpen Your Perspective */}
-        <div className="text-xs text-gray-600 tracking-[0.3em] mb-12">
-          SHARPEN YOUR PERSPECTIVE
-        </div>
+      {/* LEFT Sidebar - Gray tones */}
+      <div className={`${leftSidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 bg-gray-950 border-r border-gray-800 flex flex-col overflow-hidden relative z-20`}>
+        <div className="flex flex-col h-full">
+          {/* Logo Area */}
+          <div className={`p-4 border-b border-gray-800 ${!leftSidebarOpen ? 'flex justify-center' : ''}`}>
+            <h1 className={`font-thin tracking-[0.4em] text-white font-['Inter'] ${leftSidebarOpen ? 'text-base' : 'text-xs'}`}>
+              {leftSidebarOpen ? 'ETHRAIC' : 'E'}
+            </h1>
+          </div>
 
-        {/* Messages */}
-        <div className="w-full max-w-2xl h-[300px] flex items-center justify-center mb-12">
-          <div className="w-full max-h-full overflow-y-auto space-y-4 px-4">
-            {messages.map((message, index) => {
-              const isLastAssistant = index === messages.length - 1 && message.role === 'assistant'
-              const displayContent = isLastAssistant && !message.condensed ? displayedResponse : message.content
-              
-              return (
-                <div
-                  key={index}
-                  className={`${message.role === 'user' ? 'text-right' : 'text-left'}`}
-                >
-                  <div
-                    className={`inline-block px-4 py-2 rounded-lg max-w-lg ${
-                      message.role === 'user'
-                        ? 'bg-white/10 text-white'
-                        : 'text-gray-300'
-                    } ${message.condensed ? 'opacity-30' : ''}`}
-                  >
-                    {displayContent}
-                    {isLastAssistant && displayedResponse.length < message.content.length && (
-                      <span className="inline-block w-1 h-3 bg-gray-400 animate-pulse ml-1" />
-                    )}
-                  </div>
+          {/* Navigation - Consciousness first */}
+          <nav className={`${leftSidebarOpen ? 'px-4' : 'px-2'} py-4 space-y-1 border-b border-gray-800`}>
+            <button 
+              onClick={() => setActiveSection('consciousness')}
+              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
+                activeSection === 'consciousness' 
+                  ? 'bg-gray-900 text-white' 
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
+              }`}
+              title={!leftSidebarOpen ? 'Consciousness' : ''}
+            >
+              <Brain size={14} />
+              {leftSidebarOpen && <span className="text-xs font-thin">Consciousness</span>}
+            </button>
+            
+            <button 
+              onClick={() => setActiveSection('metrics')}
+              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
+                activeSection === 'metrics' 
+                  ? 'bg-gray-900 text-white' 
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
+              }`}
+              title={!leftSidebarOpen ? 'Thought Metrics' : ''}
+            >
+              <BarChart3 size={14} />
+              {leftSidebarOpen && <span className="text-xs font-thin">Thought Metrics</span>}
+            </button>
+            
+            <button 
+              onClick={() => setActiveSection('history')}
+              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
+                activeSection === 'history' 
+                  ? 'bg-gray-900 text-white' 
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
+              }`}
+              title={!leftSidebarOpen ? 'History' : ''}
+            >
+              <History size={14} />
+              {leftSidebarOpen && <span className="text-xs font-thin">History</span>}
+            </button>
+            
+            <button 
+              onClick={() => setActiveSection('insights')}
+              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
+                activeSection === 'insights' 
+                  ? 'bg-gray-900 text-white' 
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
+              }`}
+              title={!leftSidebarOpen ? 'Insights' : ''}
+            >
+              <Lightbulb size={14} />
+              {leftSidebarOpen && <span className="text-xs font-thin">Insights</span>}
+            </button>
+            
+            <button 
+              onClick={() => setActiveSection('settings')}
+              className={`w-full flex items-center ${leftSidebarOpen ? 'gap-3 px-3' : 'justify-center px-1'} py-2 rounded-lg transition-colors ${
+                activeSection === 'settings' 
+                  ? 'bg-gray-900 text-white' 
+                  : 'text-gray-400 hover:bg-gray-900 hover:text-gray-300'
+              }`}
+              title={!leftSidebarOpen ? 'Settings' : ''}
+            >
+              <Settings size={14} />
+              {leftSidebarOpen && <span className="text-xs font-thin">Settings</span>}
+            </button>
+          </nav>
+
+          {/* Thought Threads Section - Now scrollable */}
+          <div className={`flex-1 ${leftSidebarOpen ? 'px-4' : 'px-2'} py-4 overflow-y-auto`}>
+            {leftSidebarOpen && (
+              <>
+                <div className="text-xs text-gray-500 uppercase tracking-[0.2em] mb-3 font-thin">
+                  Thought Threads
                 </div>
-              )
-            })}
-            {isThinking && (
-              <div className="text-left">
-                <div className="inline-block px-4 py-2 text-gray-500">
-                  <span className="animate-pulse">thinking...</span>
+                
+                {/* New Thread Button */}
+                <button 
+                  onClick={createNewThread}
+                  className="w-full px-3 py-2 bg-gray-900 hover:bg-gray-800 rounded-lg flex items-center gap-2 transition-all border border-gray-800 mb-3"
+                >
+                  <Plus size={14} className="text-gray-400" />
+                  <span className="text-xs text-gray-400 font-thin">New thought thread</span>
+                </button>
+
+                {/* Thread List */}
+                <div className="space-y-1">
+                  {thoughtThreads
+                    .sort((a, b) => {
+                      // Starred threads first
+                      if (a.starred && !b.starred) return -1
+                      if (!a.starred && b.starred) return 1
+                      // Then by last active
+                      return b.lastActive - a.lastActive
+                    })
+                    .map(thread => (
+                    <div
+                      key={thread.id}
+                      className={`group flex items-center gap-2 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
+                        activeThreadId === thread.id ? 'bg-gray-900' : 'hover:bg-gray-900/50'
+                      }`}
+                    >
+                      {thread.starred && <Star size={10} className="text-yellow-500 fill-yellow-500 flex-shrink-0" />}
+                      <button
+                        onClick={() => loadThread(thread.id)}
+                        className="flex-1 text-left text-xs text-gray-400 truncate"
+                      >
+                        {thread.title}
+                      </button>
+                      <div className="hidden group-hover:flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const newName = prompt('Rename thread:', thread.title)
+                            if (newName) {
+                              setThoughtThreads(prev => prev.map(t => 
+                                t.id === thread.id ? { ...t, title: newName } : t
+                              ))
+                            }
+                          }}
+                          className="p-1 hover:bg-gray-800 rounded"
+                          title="Rename"
+                        >
+                          <Edit2 size={10} className="text-gray-500" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Share functionality
+                            navigator.clipboard.writeText(`https://ethraic.ai/thread/${thread.id}`)
+                            alert('Share link copied to clipboard!')
+                          }}
+                          className="p-1 hover:bg-gray-800 rounded"
+                          title="Share"
+                        >
+                          <Share2 size={10} className="text-gray-500" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteThread(thread.id)
+                          }}
+                          className="p-1 hover:bg-gray-800 rounded"
+                          title="Delete"
+                        >
+                          <Trash2 size={10} className="text-gray-500" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* User Profile */}
+          <div className="border-t border-gray-800 p-4">
+            {leftSidebarOpen ? (
+              <button 
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="w-full flex items-center gap-3 hover:bg-gray-900 p-2 rounded-lg transition-colors"
+              >
+                <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-xs font-thin text-gray-400">
+                  {userProfile.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-xs text-gray-400 font-thin">{userProfile.name}</div>
+                  <div className="text-xs text-gray-600 font-thin">{userProfile.plan} plan</div>
+                </div>
+                <ChevronDown size={12} className={`text-gray-600 transition-transform ${userDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+            ) : (
+              <div className="flex justify-center">
+                <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-xs font-thin text-gray-400">
+                  {userProfile.name.split(' ').map(n => n[0]).join('')}
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
-        </div>
-
-        {/* Input */}
-        <div className="w-full max-w-2xl mb-8">
-          <div className="relative">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="What are you thinking about?"
-              className="w-full bg-transparent border-b border-gray-800 text-white text-center pb-2 pr-20 focus:outline-none focus:border-gray-600 placeholder-gray-700 text-sm"
-              disabled={isThinking}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={isThinking || !input.trim()}
-              className="absolute right-0 bottom-2 text-gray-500 hover:text-white transition-colors disabled:opacity-30 text-xs tracking-wider"
-            >
-              THINK
-            </button>
-          </div>
-        </div>
-
-        {/* Voice buttons */}
-        <div className="flex items-center gap-6">
-          <button
-            onClick={() => setVoiceActive(!voiceActive)}
-            className="px-4 py-2 bg-transparent border border-gray-800 rounded-full hover:border-gray-600 transition-colors flex items-center gap-2"
-          >
-            <Mic size={14} className="text-gray-400" />
-            <span className="text-xs text-gray-400 tracking-wider">SPEAK TO ETHRAIC</span>
-          </button>
-          
-          <AudioHandler 
-            ref={audioHandlerRef}
-            enabled={audioEnabled} 
-            onToggle={() => setAudioEnabled(!audioEnabled)} 
-          />
-          
-          <button
-            onClick={() => setVoiceActive(!voiceActive)}
-            className={`px-4 py-2 rounded-full transition-colors flex items-center gap-2 ${
-              voiceActive 
-                ? 'bg-blue-500/20 border border-blue-500/50' 
-                : 'bg-transparent border border-gray-800'
-            }`}
-          >
-            <Mic size={14} className="text-gray-400" />
-            <span className="text-xs text-gray-400 tracking-wider">ACTIVATE VOICE</span>
-          </button>
-        </div>
-
-        {/* Bottom text */}
-        <div className="absolute bottom-8 text-xs text-gray-700 tracking-wider">
-          CLICK TO ACTIVATE
         </div>
       </div>
 
-      {/* Overlay Sidebar */}
-      <div className={`fixed left-0 top-0 h-full ${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 bg-black border-r border-gray-800 overflow-hidden z-30`}>
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-extralight tracking-[0.2em]">ETHRAIC</h1>
-            <span className={`text-xs text-gray-500 tracking-wider transition-opacity duration-300 ${fadeClass}`}>
-              {taglines[taglineIndex]}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Bar */}
+        <div className="h-14 border-b border-gray-900 flex items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+              className="text-gray-500 hover:text-gray-400 transition-colors p-2 rounded"
+              title="Toggle menu"
+            >
+              {leftSidebarOpen ? <ChevronLeft size={16} /> : <Menu size={16} />}
+            </button>
+            <span className="text-xs text-gray-600 font-thin tracking-[0.3em] uppercase">
+              Thought Thread
             </span>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-2 hover:bg-gray-900 rounded-lg transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        
-        {activeSection === 'consciousness' ? (
-          <nav className="p-4">
-            <div className="space-y-2">
-              {[
-                { id: 'consciousness', label: 'Consciousness', icon: Brain },
-                { id: 'metrics', label: 'Metrics', icon: BarChart3 },
-                { id: 'history', label: 'History', icon: History },
-                { id: 'insights', label: 'Insights', icon: Lightbulb },
-                { id: 'settings', label: 'Settings', icon: Settings }
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveSection(id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                    activeSection === id 
-                      ? 'bg-blue-600/20 text-blue-400' 
-                      : 'text-gray-400 hover:text-white hover:bg-gray-900'
-                  }`}
-                >
-                  <Icon size={18} />
-                  <span className="text-sm">{label}</span>
-                  {activeSection === id && <ChevronRight size={14} className="ml-auto" />}
-                </button>
-              ))}
-            </div>
-            
-            <div className="absolute bottom-4 left-4 right-4 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Session Time</span>
-                <span className="text-xs text-gray-400 font-mono">{formatDuration(sessionDuration)}</span>
+          <div className="flex items-center gap-4">
+            {isListening && (
+              <div className="flex items-center gap-2 text-xs text-red-400">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                Recording
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Exchanges</span>
-                <span className="text-xs text-gray-400 font-mono">{exchangeCount}</span>
-              </div>
-            </div>
-          </nav>
-        ) : (
-          <div className="h-full overflow-y-auto bg-black">
-            <button
-              onClick={() => setActiveSection('consciousness')}
-              className="m-4 text-gray-400 hover:text-white flex items-center gap-2"
-            >
-              <ChevronRight size={16} className="rotate-180" />
-              <span className="text-sm">Back</span>
+            )}
+            <button className="text-gray-600 hover:text-gray-400 text-xs transition-colors">
+              Share
             </button>
-            {renderSidebarContent()}
+            <button
+              onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+              className="text-gray-500 hover:text-gray-400 transition-colors"
+              title="Toggle voice panel"
+            >
+              {rightSidebarOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
           </div>
-        )}
+        </div>
+
+        {/* Main Interface */}
+        <div className="flex-1 relative overflow-hidden">
+          {userProfile.preferences.particles && <ThoughtCanvas />}
+          
+          <div className="relative z-10 h-full flex flex-col items-center justify-center px-8">
+            {/* Logo */}
+            <h1 className="text-5xl font-thin tracking-[0.4em] mb-4 text-white">
+              ETHRAIC
+            </h1>
+            
+            {/* Metrics */}
+            <div className="text-xs text-gray-500 tracking-[0.2em] mb-8 uppercase font-thin">
+              CLARITY: {metrics.clarity}% | DEPTH: {metrics.depth}%
+            </div>
+
+            <div className="text-xs text-gray-600 tracking-[0.3em] mb-8 uppercase font-thin">
+              GET TO THE POINT FASTER
+            </div>
+
+            {/* Messages Area */}
+            <div className="w-full max-w-3xl h-[400px] mb-8">
+              <div className="h-full overflow-y-auto space-y-4 px-4">
+                {messages.map((message, index) => {
+                  const isLastAssistant = index === messages.length - 1 && message.role === 'assistant'
+                  const displayContent = isLastAssistant && !message.condensed ? (displayedResponse || message.content || '') : (message.content || '')
+                  
+                  return (
+                    <div
+                      key={message.id}
+                      className={`${message.role === 'user' ? 'text-right' : 'text-left'}`}
+                    >
+                      <div
+                        className={`inline-block px-4 py-2 rounded-lg max-w-lg ${
+                          message.role === 'user'
+                            ? 'bg-gray-900 text-white'
+                            : 'text-gray-300'
+                        } ${message.condensed ? 'opacity-30' : ''}`}
+                      >
+                        {displayContent}
+                        {isLastAssistant && displayedResponse && message.content && displayedResponse.length < message.content.length && (
+                          <span className="inline-block w-1 h-3 bg-gray-500 animate-pulse ml-1" />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+                {isThinking && (
+                  <div className="text-left">
+                    <div className="inline-block px-4 py-2 text-gray-600">
+                      <span className="animate-pulse font-thin">expanding consciousness...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {/* Modern Input Area */}
+            <div className="w-full max-w-3xl mb-8">
+              <div className="bg-gray-900/50 rounded-2xl border border-gray-800 p-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={toggleVoiceRecognition}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isListening ? 'bg-red-900/50 text-red-400' : 'hover:bg-gray-800 text-gray-500'
+                    }`}
+                    title="Voice input"
+                  >
+                    {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                  </button>
+                  
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="What are you thinking about?"
+                    className="flex-1 bg-transparent text-white placeholder-gray-600 focus:outline-none text-sm font-thin"
+                    disabled={isThinking}
+                  />
+                  
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={isThinking || !input.trim()}
+                    className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 disabled:opacity-30 transition-colors"
+                    title="Send message"
+                  >
+                    <ArrowUp size={18} className="text-gray-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Voice Mode Button */}
+            <button
+              onClick={() => setRightSidebarOpen(true)}
+              className="px-6 py-2 bg-transparent border border-gray-800 rounded-full hover:border-gray-600 transition-all flex items-center gap-3"
+            >
+              <Mic size={12} className="text-gray-600" />
+              <span className="text-xs text-gray-600 uppercase tracking-[0.2em] font-thin">
+                OPEN VOICE MODE
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom Explorer Bar */}
+        <div className="h-12 border-t border-gray-900 flex items-center px-6">
+          <div className="flex items-center gap-2 text-gray-700">
+            <User size={12} />
+            <span className="text-xs uppercase tracking-[0.2em] font-thin">EXPLORER</span>
+          </div>
+          <div className="ml-auto flex items-center gap-4 text-xs text-gray-700 font-thin">
+            <span>Session: {formatDuration(sessionDuration)}</span>
+            <span>Exchanges: {exchangeCount}</span>
+            {currentPhase && (
+              <span className="text-gray-500">Phase: {currentPhase}</span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Menu button (only shows when sidebar is closed) */}
-      {!sidebarOpen && (
+      {/* RIGHT Sidebar - Voice Panel (Gray) */}
+      <div className={`${rightSidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 bg-gray-950 border-l border-gray-800 flex flex-col overflow-hidden relative`}
+           style={{ minWidth: rightSidebarOpen ? '320px' : '0', maxWidth: rightSidebarOpen ? '320px' : '0' }}>
+        
         <button
-          onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 p-2 hover:bg-gray-900 rounded-lg transition-colors z-20"
+          onClick={() => setRightSidebarOpen(false)}
+          className="absolute top-4 left-4 text-gray-500 hover:text-gray-300 z-10"
         >
-          <Menu size={16} className="text-gray-400" />
+          <X size={16} />
+        </button>
+        
+        <div className="h-full flex items-center justify-center p-8">
+          <div className="flex flex-col items-center justify-center space-y-8 w-full">
+            <h2 className="text-2xl font-thin text-white tracking-[0.3em] uppercase text-center">
+              SPEAK TO EXPAND
+            </h2>
+            
+            <button
+              onClick={toggleVoiceRecognition}
+              className={`w-32 h-32 rounded-full flex items-center justify-center transition-all transform hover:scale-105 ${
+                isListening 
+                  ? 'bg-gray-800 animate-pulse shadow-lg shadow-gray-800/50' 
+                  : 'bg-gray-900 hover:bg-gray-800 border border-gray-800'
+              }`}
+            >
+              <Mic size={48} className={isListening ? 'text-white' : 'text-gray-500'} />
+            </button>
+            
+            <h2 className="text-lg font-thin text-gray-400 tracking-[0.2em] uppercase text-center">
+              {isListening ? 'LISTENING...' : 'TAP TO SPEAK'}
+            </h2>
+            
+            <button
+              onClick={() => {
+                setPreferTyping(true)
+                setRightSidebarOpen(false)
+              }}
+              className="text-xs text-gray-500 hover:text-gray-400 transition-colors underline font-thin"
+            >
+              Prefer to type or journal
+            </button>
+            
+            <div className="w-full max-w-xs p-4 bg-gray-900/50 rounded-lg border border-gray-800">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={coThinkingMode}
+                  onChange={(e) => {
+                    setCoThinkingMode(e.target.checked)
+                    updatePreference('coThinking', e.target.checked)
+                  }}
+                  className="sr-only"
+                />
+                <div className={`w-10 h-6 rounded-full transition-colors ${
+                  coThinkingMode ? 'bg-gray-700' : 'bg-gray-800'
+                } relative`}>
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-gray-400 transition-transform ${
+                    coThinkingMode ? 'translate-x-5' : 'translate-x-1'
+                  }`} />
+                </div>
+                <span className="text-xs text-gray-400 font-thin">Co-thinking Mode</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-2 font-thin text-center">
+                Think out loud together in continuous conversation
+              </p>
+            </div>
+            
+            {isListening && (
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                Recording active
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Metrics Panel Overlay */}
+      {renderMetricsContent()}
+
+      {/* Sidebar Toggle Button - Show when both sidebars are closed */}
+      {!leftSidebarOpen && !rightSidebarOpen && (
+        <button
+          onClick={() => setLeftSidebarOpen(true)}
+          className="fixed bottom-4 left-4 p-3 bg-gray-900 border border-gray-800 rounded-full hover:bg-gray-800 transition-colors z-30"
+          title="Open sidebar"
+        >
+          <Menu size={16} className="text-gray-500" />
         </button>
       )}
     </div>

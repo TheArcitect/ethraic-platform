@@ -10,12 +10,11 @@ export async function POST(request: Request) {
     const { text } = await request.json();
     
     const audioStream = await elevenlabs.generate({
-      voice: "Rachel", // You can also try "Antoni", "Bella", "Domi", "Elli"
+      voice: "Rachel",
       text: text,
       model_id: "eleven_monolingual_v1"
     });
 
-    // Convert stream to buffer
     const chunks = [];
     for await (const chunk of audioStream) {
       chunks.push(chunk);
